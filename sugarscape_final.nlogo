@@ -104,6 +104,7 @@ to person-setup ;; person procedure
   initialize-immune-system nobody nobody
   set phenotype genotype
   set has-disease-sequence []
+  set how-sick 0
   if starting-probability-disease > random-in-range 1 100
   [
     ;; gets a random disease
@@ -114,7 +115,6 @@ to person-setup ;; person procedure
     hamming-distance (has-disease-sequence) phenotype
 
     let hd-index (min-hd (hamming-distances))
-    if hd-index = -1 [ print "HOUSTON WE'VE GOT A PROBLEM" ]
   ]
 
   set shape "circle"
@@ -171,11 +171,32 @@ to go
       die
     ]
     ;; sick
-    if has-disease-sequence != [] [
+    ifelse has-disease-sequence != [] [
       set metabolism metabolism + how-sick
+    ][
+
+    if can-get-sick-anytime = True
+      [
+        set has-disease-sequence []
+        set how-sick 0
+        let rando random-in-range 1 100
+        if probability-of-sick-randomly > rando
+        [
+          print rando
+          ;; gets a random disease
+          let disease-num (random-in-range 0 (number-diseases - 1))
+          set has-disease-sequence ([disease-sequence] of disease disease-num)
+
+          set how-sick random-in-range 1 2
+          hamming-distance (has-disease-sequence) phenotype
+
+          let hd-index (min-hd (hamming-distances))
+        ]
+      ]
     ]
     spread-disease ;; spread before babies
     person-is-fertile
+
     run visualization
   ]
   update-lorenz-and-gini
@@ -288,41 +309,48 @@ to check-partners [birth-spot]
     ifelse birth-spot = 1
     [
       let parent-2 neighbours with [sex = 1 and age >= fertility-min-age and age <= fertility-max-age and sugar >= original-endowment]
-      if parent-2 != no-turtles
+      if parent-2 != no-turtles ;; there is a parent 2
       [
-        set sugar (sugar - original-endowment)
         hatch 1 [
-          ifelse length first [has-disease-sequence] of parent-2 > 1 and (first [has-disease-sequence] of parent-2) != []
+
+        ;; basics
+          set color yellow
+          set sex random-in-range 0 1
+          set generation ((max list (first [generation] of parent-2) (generation)) + 1)
+          set age 0
+          set max-age random-in-range 60 100
+
+        ;; initialize parents
+          let partner one-of parent-2
+          let parent one-of list (partner) (myself) ;; selects a random parent to inherit from
+
+        ;; inherit disease
+          ifelse length first [has-disease-sequence] of parent-2 > 1 or length has-disease-sequence > 1
           [
-            set has-disease-sequence ([has-disease-sequence] of parent-2)
+            set has-disease-sequence ([has-disease-sequence] of parent)
             set how-sick random-in-range 1 2
           ][
             set has-disease-sequence []
+            set how-sick 0
           ]
 
+        ;; endowment
+          initialize-immune-system ([genotype] of partner) (genotype)
+          set sugar (( [sugar] of partner ) / 2 ) + (( [sugar] of myself ) / 2 )
 
-          set color yellow
-          initialize-immune-system (first [genotype] of parent-2) (genotype)
-          set sugar random-in-range minimum-sugar-endowment maximum-sugar-endowment
+        ;; basic life variables
+          set parent one-of list (partner) (myself)
+          set metabolism min list ([metabolism] of parent) metabolism
 
-          set metabolism min list (first [metabolism] of parent-2) metabolism
-
-          set vision max list (first [vision] of parent-2) vision
+          set parent one-of list (partner) (myself)
+          set vision max list ([vision] of parent) vision
 
           set vision-points []
           foreach (range 1 (vision + 1)) [ n ->
             set vision-points sentence vision-points (list (list 0 n) (list n 0) (list 0 (- n)) (list (- n) 0))
           ]
-          set age 0
-          set max-age random-in-range 60 100
 
-          set generation ((max list (first [generation] of parent-2) (generation)) + 1)
-
-          inheritance-sugar (first [original-endowment] of parent-2) (original-endowment)
-          ask parent-2 [set sugar (sugar - (0.5 * original-endowment))]
-          ask myself [set sugar (sugar - (0.5 * original-endowment))]
-
-          set sex random-in-range 0 1
+        ;; fertility
           set fertility-min-age random-in-range 12 15
           if sex = 0
           [
@@ -332,6 +360,11 @@ to check-partners [birth-spot]
           [
             set fertility-max-age random-in-range 50 60
           ]
+
+        ;; update parents
+          ask partner [set sugar (sugar - (0.5 * original-endowment))]
+          ask myself [set sugar (sugar - (0.5 * original-endowment))]
+
         ]
       ]
     ]
@@ -339,38 +372,46 @@ to check-partners [birth-spot]
       let parent-2 neighbours with [sex = 1 and age >= fertility-min-age and age <= fertility-max-age and sugar >= original-endowment and count neighbours < 4]
       if parent-2 != no-turtles
       [
-        set sugar (sugar - original-endowment)
         hatch 1 [
-          ifelse length first [has-disease-sequence] of parent-2 > 1 and (first [has-disease-sequence] of parent-2) != []
+
+        ;; basics
+          set color yellow
+          set sex random-in-range 0 1
+          set generation ((max list (first [generation] of parent-2) (generation)) + 1)
+          set age 0
+          set max-age random-in-range 60 100
+
+        ;; initialize parents
+          let partner one-of parent-2
+          let parent one-of list (partner) (myself) ;; selects a random parent to inherit from
+
+        ;; inherit disease
+          ifelse length first [has-disease-sequence] of parent-2 > 1 or length has-disease-sequence > 1
           [
-            set has-disease-sequence ([has-disease-sequence] of parent-2)
+            set has-disease-sequence ([has-disease-sequence] of parent)
+            set how-sick random-in-range 1 2
           ][
             set has-disease-sequence []
+            set how-sick 0
           ]
 
+        ;; endowment
+          initialize-immune-system ([genotype] of partner) (genotype)
+          set sugar (( [sugar] of partner ) / 2 ) + (( [sugar] of myself ) / 2 )
 
-          set color yellow
-          initialize-immune-system (first [genotype] of parent-2) (genotype)
-          set sugar random-in-range minimum-sugar-endowment maximum-sugar-endowment
+        ;; basic life variables
+          set parent one-of list (partner) (myself)
+          set metabolism min list ([metabolism] of parent) metabolism
 
-          set metabolism min list (first [metabolism] of parent-2) metabolism
-
-          set vision max list (first [vision] of parent-2) vision
+          set parent one-of list (partner) (myself)
+          set vision max list ([vision] of parent) vision
 
           set vision-points []
           foreach (range 1 (vision + 1)) [ n ->
             set vision-points sentence vision-points (list (list 0 n) (list n 0) (list 0 (- n)) (list (- n) 0))
           ]
-          set age 0
-          set max-age random-in-range 60 100
 
-          set generation ((max list (first [generation] of parent-2) (generation)) + 1)
-
-          inheritance-sugar (first [original-endowment] of parent-2) (original-endowment)
-          ask parent-2 [set sugar (sugar - (0.5 * original-endowment))]
-          ask myself [set sugar (sugar - (0.5 * original-endowment))]
-
-          set sex random-in-range 0 1
+        ;; fertility
           set fertility-min-age random-in-range 12 15
           if sex = 0
           [
@@ -380,6 +421,11 @@ to check-partners [birth-spot]
           [
             set fertility-max-age random-in-range 50 60
           ]
+
+        ;; update parents
+          ask partner [set sugar (sugar - (0.5 * original-endowment))]
+          ask myself [set sugar (sugar - (0.5 * original-endowment))]
+
         ]
       ]
     ]
@@ -390,40 +436,46 @@ to check-partners [birth-spot]
       let parent-2 neighbours with [sex = 0 and age >= fertility-min-age and age <= fertility-max-age and sugar >= original-endowment]
       if parent-2 != no-turtles
       [
-        set sugar (sugar - original-endowment)
         hatch 1 [
-          ifelse length first [has-disease-sequence] of parent-2 > 1 and (first [has-disease-sequence] of parent-2) != []
+
+        ;; basics
+          set color yellow
+          set sex random-in-range 0 1
+          set generation ((max list (first [generation] of parent-2) (generation)) + 1)
+          set age 0
+          set max-age random-in-range 60 100
+
+        ;; initialize parents
+          let partner one-of parent-2
+          let parent one-of list (partner) (myself) ;; selects a random parent to inherit from
+
+        ;; inherit disease
+          ifelse length first [has-disease-sequence] of parent-2 > 1 or length has-disease-sequence > 1
           [
-            set has-disease-sequence ([has-disease-sequence] of parent-2)
+            set has-disease-sequence ([has-disease-sequence] of parent)
             set how-sick random-in-range 1 2
           ][
-            set has-disease-sequence [has-disease-sequence] of myself
-            set how-sick [has-disease-sequence] of myself
+            set has-disease-sequence []
+            set how-sick 0
           ]
 
+        ;; endowment
+          initialize-immune-system ([genotype] of partner) (genotype)
+          set sugar (( [sugar] of partner ) / 2 ) + (( [sugar] of myself ) / 2 )
 
-          set color yellow
-          initialize-immune-system (first [genotype] of parent-2) (genotype)
-          set sugar random-in-range minimum-sugar-endowment maximum-sugar-endowment
+        ;; basic life variables
+          set parent one-of list (partner) (myself)
+          set metabolism min list ([metabolism] of parent) metabolism
 
-          set metabolism min list (first [metabolism] of parent-2) metabolism
-
-          set vision max list (first [vision] of parent-2) vision
+          set parent one-of list (partner) (myself)
+          set vision max list ([vision] of parent) vision
 
           set vision-points []
           foreach (range 1 (vision + 1)) [ n ->
             set vision-points sentence vision-points (list (list 0 n) (list n 0) (list 0 (- n)) (list (- n) 0))
           ]
-          set age 0
-          set max-age random-in-range 60 100
 
-          set generation ((max list (first [generation] of parent-2) (generation)) + 1)
-
-          inheritance-sugar (first [original-endowment] of parent-2) (original-endowment)
-          ask parent-2 [set sugar (sugar - (0.5 * original-endowment))]
-          ask myself [set sugar (sugar - (0.5 * original-endowment))]
-
-          set sex random-in-range 0 1
+        ;; fertility
           set fertility-min-age random-in-range 12 15
           if sex = 0
           [
@@ -433,6 +485,11 @@ to check-partners [birth-spot]
           [
             set fertility-max-age random-in-range 50 60
           ]
+
+        ;; update parents
+          ask partner [set sugar (sugar - (0.5 * original-endowment))]
+          ask myself [set sugar (sugar - (0.5 * original-endowment))]
+
         ]
       ]
     ]
@@ -440,40 +497,46 @@ to check-partners [birth-spot]
       let parent-2 neighbours with [sex = 0 and age >= fertility-min-age and age <= fertility-max-age and sugar >= original-endowment and count neighbours < 4]
       if parent-2 != no-turtles
       [
-        set sugar (sugar - original-endowment)
         hatch 1 [
-          ifelse length first [has-disease-sequence] of parent-2 > 1 and (first [has-disease-sequence] of parent-2) != []
+
+        ;; basics
+          set color yellow
+          set sex random-in-range 0 1
+          set generation ((max list (first [generation] of parent-2) (generation)) + 1)
+          set age 0
+          set max-age random-in-range 60 100
+
+        ;; initialize parents
+          let partner one-of parent-2
+          let parent one-of list (partner) (myself) ;; selects a random parent to inherit from
+
+        ;; inherit disease
+          ifelse length first [has-disease-sequence] of parent-2 > 1 or length has-disease-sequence > 1
           [
-            set has-disease-sequence ([has-disease-sequence] of parent-2)
+            set has-disease-sequence ([has-disease-sequence] of parent)
             set how-sick random-in-range 1 2
           ][
             set has-disease-sequence []
             set how-sick 0
           ]
 
+        ;; endowment
+          initialize-immune-system ([genotype] of partner) (genotype)
+          set sugar (( [sugar] of partner ) / 2 ) + (( [sugar] of myself ) / 2 )
 
-          set color yellow
-          initialize-immune-system (first [genotype] of parent-2) (genotype)
-          set sugar random-in-range minimum-sugar-endowment maximum-sugar-endowment
+        ;; basic life variables
+          set parent one-of list (partner) (myself)
+          set metabolism min list ([metabolism] of parent) metabolism
 
-          set metabolism min list (first [metabolism] of parent-2) metabolism
-
-          set vision max list (first [vision] of parent-2) vision
+          set parent one-of list (partner) (myself)
+          set vision max list ([vision] of parent) vision
 
           set vision-points []
           foreach (range 1 (vision + 1)) [ n ->
             set vision-points sentence vision-points (list (list 0 n) (list n 0) (list 0 (- n)) (list (- n) 0))
           ]
-          set age 0
-          set max-age random-in-range 60 100
 
-          set generation ((max list (first [generation] of parent-2) (generation)) + 1)
-
-          inheritance-sugar (first [original-endowment] of parent-2) (original-endowment)
-          ask parent-2 [set sugar (sugar - (0.5 * original-endowment))]
-          ask myself [set sugar (sugar - (0.5 * original-endowment))]
-
-          set sex random-in-range 0 1
+        ;; fertility
           set fertility-min-age random-in-range 12 15
           if sex = 0
           [
@@ -483,6 +546,11 @@ to check-partners [birth-spot]
           [
             set fertility-max-age random-in-range 50 60
           ]
+
+        ;; update parents
+          ask partner [set sugar (sugar - (0.5 * original-endowment))]
+          ask myself [set sugar (sugar - (0.5 * original-endowment))]
+
         ]
       ]
     ]
@@ -606,9 +674,9 @@ ticks
 
 BUTTON
 10
-175
+170
 90
-215
+210
 NIL
 setup
 NIL
@@ -623,9 +691,9 @@ NIL
 
 BUTTON
 100
-175
+170
 190
-215
+210
 NIL
 go
 T
@@ -640,9 +708,9 @@ NIL
 
 BUTTON
 200
-175
+170
 290
-215
+210
 go once
 go
 NIL
@@ -657,9 +725,9 @@ NIL
 
 CHOOSER
 10
-230
+215
 290
-275
+260
 visualization
 visualization
 "no-visualization" "color-persons-by-vision" "color-persons-by-metabolism"
@@ -707,8 +775,8 @@ minimum-sugar-endowment
 minimum-sugar-endowment
 0
 200
-16.0
-1
+15.0
+5
 1
 NIL
 HORIZONTAL
@@ -760,7 +828,7 @@ maximum-sugar-endowment
 0
 200
 30.0
-1
+5
 1
 NIL
 HORIZONTAL
@@ -773,8 +841,8 @@ SLIDER
 number-diseases
 number-diseases
 0
-100
-6.0
+50
+8.0
 1
 1
 NIL
@@ -782,9 +850,9 @@ HORIZONTAL
 
 MONITOR
 190
-325
+305
 290
-370
+350
 num persons
 count persons
 0
@@ -792,9 +860,9 @@ count persons
 11
 
 PLOT
-320
+380
 430
-520
+550
 580
 Visions
 NIL
@@ -810,7 +878,7 @@ PENS
 "mean" 1.0 0 -16777216 true "" "plot mean [vision] of persons"
 
 PLOT
-520
+550
 430
 720
 580
@@ -828,9 +896,9 @@ PENS
 "mean" 1.0 0 -16777216 true "" "plot mean [metabolism] of persons"
 
 PLOT
-720
+200
 430
-925
+380
 580
 Age
 NIL
@@ -844,13 +912,12 @@ false
 "" ""
 PENS
 "mean" 1.0 0 -16777216 true "" "plot mean [age] of persons"
-"median" 1.0 0 -7500403 true "" "plot median [age] of persons"
 
 PLOT
-520
+20
+430
+200
 580
-720
-730
 Generation
 NIL
 NIL
@@ -863,13 +930,12 @@ false
 "" ""
 PENS
 "mean" 1.0 0 -16777216 true "" "plot mean [generation] of persons"
-"median" 1.0 0 -7500403 true "" "plot median [generation] of persons"
 
 PLOT
 720
-580
+430
 925
-730
+580
 birth/death rates
 NIL
 NIL
@@ -885,29 +951,55 @@ PENS
 
 SLIDER
 10
-285
+265
 290
-318
+298
 starting-probability-disease
 starting-probability-disease
 0
 100
-67.0
-1
+10.0
+5
 1
 NIL
 HORIZONTAL
 
 MONITOR
-10
-325
-110
-370
+20
+305
+120
+350
 Number Sick
 count persons with [has-disease-sequence != []]
 17
 1
 11
+
+SWITCH
+20
+355
+290
+388
+can-get-sick-anytime
+can-get-sick-anytime
+0
+1
+-1000
+
+SLIDER
+20
+390
+290
+423
+probability-of-sick-randomly
+probability-of-sick-randomly
+0
+100
+10.0
+5
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 @#$#@#$#@
