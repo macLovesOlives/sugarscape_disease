@@ -11,6 +11,7 @@ breed [ diseases disease ]
 diseases-own [
   disease-sequence
   persons-map ;; key: person_id value: starting index of phenotype manipulation
+  disease-strength
 ]
 
 persons-own [
@@ -33,6 +34,7 @@ persons-own [
   genotype
   phenotype
   has-disease-sequence
+  how-sick
   hamming-distances
 
   ;; misc, but useful
@@ -64,6 +66,7 @@ end
 to disease-setup
   let disease-sequence-len random-in-range 2 10
   initialize-disease-sequence disease-sequence-len
+  set disease-strength random-in-range 1 5
 end
 
 to person-setup ;; person procedure
@@ -105,19 +108,16 @@ to person-setup ;; person procedure
   [
     ;; gets a random disease
     let disease-num (random-in-range 0 (number-diseases - 1))
-    set has-disease-sequence disease (disease-num)
-    show has-disease-sequence
-    hamming-distance ([disease-sequence] of has-disease-sequence) phenotype
+    set has-disease-sequence ([disease-sequence] of disease disease-num)
+
+    set how-sick random-in-range 1 2
+    hamming-distance (has-disease-sequence) phenotype
 
     let hd-index (min-hd (hamming-distances))
     if hd-index = -1 [ print "HOUSTON WE'VE GOT A PROBLEM" ]
-    if table:get hamming-distances hd-index = 0 [
-      set has-disease-sequence []
-    ]
   ]
 
   set shape "circle"
-  show has-disease-sequence
   run visualization
 end
 
@@ -168,9 +168,13 @@ to go
     person-eat
     set age (age + 1)
     if sugar <= 0 or age > max-age [
-;      hatch 1 [ person-setup ]
       die
     ]
+    ;; sick
+    if has-disease-sequence != [] [
+      set metabolism metabolism + how-sick
+    ]
+    spread-disease ;; spread before babies
     person-is-fertile
     run visualization
   ]
@@ -240,7 +244,6 @@ to initialize-immune-system [a b]
 end
 
 to hamming-distance [disease-sequence-in phenotype-in]
-
   set hamming-distances table:make
 
   let length-of-phenotype (length phenotype-in)
@@ -266,6 +269,14 @@ to hamming-distance [disease-sequence-in phenotype-in]
   ]
 end
 
+to spread-disease
+  let counter 0
+  ask neighbours [
+    set has-disease-sequence [has-disease-sequence] of myself
+    hamming-distance has-disease-sequence phenotype
+    set how-sick random-in-range 1 2
+  ]
+end
 
 to inheritance-sugar [a b]
   set sugar ((.5 * a) + (.5 * b))
@@ -281,11 +292,23 @@ to check-partners [birth-spot]
       [
         set sugar (sugar - original-endowment)
         hatch 1 [
+          ifelse length first [has-disease-sequence] of parent-2 > 1 and (first [has-disease-sequence] of parent-2) != []
+          [
+            set has-disease-sequence ([has-disease-sequence] of parent-2)
+            set how-sick random-in-range 1 2
+          ][
+            set has-disease-sequence []
+          ]
+
+
           set color yellow
           initialize-immune-system (first [genotype] of parent-2) (genotype)
           set sugar random-in-range minimum-sugar-endowment maximum-sugar-endowment
-          set metabolism random-in-range 1 4
-          set vision random-in-range 1 6
+
+          set metabolism min list (first [metabolism] of parent-2) metabolism
+
+          set vision max list (first [vision] of parent-2) vision
+
           set vision-points []
           foreach (range 1 (vision + 1)) [ n ->
             set vision-points sentence vision-points (list (list 0 n) (list n 0) (list 0 (- n)) (list (- n) 0))
@@ -318,11 +341,22 @@ to check-partners [birth-spot]
       [
         set sugar (sugar - original-endowment)
         hatch 1 [
+          ifelse length first [has-disease-sequence] of parent-2 > 1 and (first [has-disease-sequence] of parent-2) != []
+          [
+            set has-disease-sequence ([has-disease-sequence] of parent-2)
+          ][
+            set has-disease-sequence []
+          ]
+
+
           set color yellow
           initialize-immune-system (first [genotype] of parent-2) (genotype)
           set sugar random-in-range minimum-sugar-endowment maximum-sugar-endowment
-          set metabolism random-in-range 1 4
-          set vision random-in-range 1 6
+
+          set metabolism min list (first [metabolism] of parent-2) metabolism
+
+          set vision max list (first [vision] of parent-2) vision
+
           set vision-points []
           foreach (range 1 (vision + 1)) [ n ->
             set vision-points sentence vision-points (list (list 0 n) (list n 0) (list 0 (- n)) (list (- n) 0))
@@ -358,11 +392,24 @@ to check-partners [birth-spot]
       [
         set sugar (sugar - original-endowment)
         hatch 1 [
+          ifelse length first [has-disease-sequence] of parent-2 > 1 and (first [has-disease-sequence] of parent-2) != []
+          [
+            set has-disease-sequence ([has-disease-sequence] of parent-2)
+            set how-sick random-in-range 1 2
+          ][
+            set has-disease-sequence [has-disease-sequence] of myself
+            set how-sick [has-disease-sequence] of myself
+          ]
+
+
           set color yellow
           initialize-immune-system (first [genotype] of parent-2) (genotype)
           set sugar random-in-range minimum-sugar-endowment maximum-sugar-endowment
-          set metabolism random-in-range 1 4
-          set vision random-in-range 1 6
+
+          set metabolism min list (first [metabolism] of parent-2) metabolism
+
+          set vision max list (first [vision] of parent-2) vision
+
           set vision-points []
           foreach (range 1 (vision + 1)) [ n ->
             set vision-points sentence vision-points (list (list 0 n) (list n 0) (list 0 (- n)) (list (- n) 0))
@@ -395,11 +442,24 @@ to check-partners [birth-spot]
       [
         set sugar (sugar - original-endowment)
         hatch 1 [
+          ifelse length first [has-disease-sequence] of parent-2 > 1 and (first [has-disease-sequence] of parent-2) != []
+          [
+            set has-disease-sequence ([has-disease-sequence] of parent-2)
+            set how-sick random-in-range 1 2
+          ][
+            set has-disease-sequence []
+            set how-sick 0
+          ]
+
+
           set color yellow
           initialize-immune-system (first [genotype] of parent-2) (genotype)
           set sugar random-in-range minimum-sugar-endowment maximum-sugar-endowment
-          set metabolism random-in-range 1 4
-          set vision random-in-range 1 6
+
+          set metabolism min list (first [metabolism] of parent-2) metabolism
+
+          set vision max list (first [vision] of parent-2) vision
+
           set vision-points []
           foreach (range 1 (vision + 1)) [ n ->
             set vision-points sentence vision-points (list (list 0 n) (list n 0) (list 0 (- n)) (list (- n) 0))
@@ -498,7 +558,7 @@ to no-visualization
 
 end
 
-to color-persons-by-vision ;; higher = better = lighter
+to color-persons-by-vision ;; higher = better = darker
   ifelse has-disease-sequence = []
   [
     set color 9 - (vision)
@@ -508,7 +568,7 @@ to color-persons-by-vision ;; higher = better = lighter
   ]
 end
 
-to color-persons-by-metabolism ;; lower = better = lighter
+to color-persons-by-metabolism ;; lower = better = darker
   ifelse has-disease-sequence = []
   [
     set color 0 + (metabolism * 2)
@@ -603,7 +663,7 @@ CHOOSER
 visualization
 visualization
 "no-visualization" "color-persons-by-vision" "color-persons-by-metabolism"
-0
+1
 
 PLOT
 720
@@ -632,7 +692,7 @@ initial-population
 initial-population
 10
 1000
-240.0
+600.0
 10
 1
 NIL
@@ -647,7 +707,7 @@ minimum-sugar-endowment
 minimum-sugar-endowment
 0
 200
-3.0
+16.0
 1
 1
 NIL
@@ -670,7 +730,7 @@ true
 "" ""
 PENS
 "equal" 100.0 0 -16777216 true ";; draw a straight line from lower left to upper right\nset-current-plot-pen \"equal\"\nplot 0\nplot 100" ""
-"lorenz" 1.0 0 -2674135 true "" "plot-pen-reset\nset-plot-pen-interval 100 / count turtles\nplot 0\nforeach lorenz-points plot"
+"lorenz" 1.0 0 -2674135 true "" "plot-pen-reset\nset-plot-pen-interval 100 / count persons\nplot 0\nforeach lorenz-points plot"
 
 PLOT
 720
@@ -699,7 +759,7 @@ maximum-sugar-endowment
 maximum-sugar-endowment
 0
 200
-8.0
+30.0
 1
 1
 NIL
@@ -721,12 +781,12 @@ NIL
 HORIZONTAL
 
 MONITOR
-440
-580
-522
-625
-num turtles
-count turtles
+190
+325
+290
+370
+num persons
+count persons
 0
 1
 11
@@ -748,7 +808,6 @@ false
 "" ""
 PENS
 "mean" 1.0 0 -16777216 true "" "plot mean [vision] of persons"
-"median" 1.0 0 -5987164 true "" "plot median [vision] of persons"
 
 PLOT
 520
@@ -767,7 +826,6 @@ false
 "" ""
 PENS
 "mean" 1.0 0 -16777216 true "" "plot mean [metabolism] of persons"
-"median" 1.0 0 -7500403 true "" "plot median [metabolism] of persons"
 
 PLOT
 720
@@ -834,11 +892,22 @@ starting-probability-disease
 starting-probability-disease
 0
 100
-23.0
+67.0
 1
 1
 NIL
 HORIZONTAL
+
+MONITOR
+10
+325
+110
+370
+Number Sick
+count persons with [has-disease-sequence != []]
+17
+1
+11
 
 @#$#@#$#@
 @#$#@#$#@
