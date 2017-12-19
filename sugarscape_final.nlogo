@@ -68,6 +68,7 @@ end
 
 to person-setup ;; person procedure
   move-to one-of patches with [not any? other persons-here]
+
   set color grey
   set shape "circle"
 
@@ -99,25 +100,24 @@ to person-setup ;; person procedure
   ;; disease
   initialize-immune-system nobody nobody
   set phenotype genotype
+  set has-disease-sequence []
   if starting-probability-disease > random-in-range 1 100
   [
     ;; gets a random disease
     let disease-num (random-in-range 0 (number-diseases - 1))
     set has-disease-sequence disease (disease-num)
-
+    show has-disease-sequence
     hamming-distance ([disease-sequence] of has-disease-sequence) phenotype
-
-    show [disease-sequence] of has-disease-sequence
-    show phenotype
-    show hamming-distances
 
     let hd-index (min-hd (hamming-distances))
     if hd-index = -1 [ print "HOUSTON WE'VE GOT A PROBLEM" ]
     if table:get hamming-distances hd-index = 0 [
-      print "YESSS BITCH"
       set has-disease-sequence []
     ]
   ]
+
+  set shape "circle"
+  show has-disease-sequence
   run visualization
 end
 
@@ -246,9 +246,6 @@ to hamming-distance [disease-sequence-in phenotype-in]
   let length-of-phenotype (length phenotype-in)
   let length-of-disease (length disease-sequence-in)
 
-  print length-of-phenotype
-  print length-of-disease
-
   let pheno_start_compare 0
   let location_in_disease 0
 
@@ -257,9 +254,6 @@ to hamming-distance [disease-sequence-in phenotype-in]
     table:put hamming-distances pheno_start_compare 0
     while[ location_in_disease < length-of-disease]
     [
-      print "---"
-      show pheno_start_compare
-      show location_in_disease
       if item location_in_disease disease-sequence-in != item (location_in_disease + pheno_start_compare) phenotype-in
       [
         table:put hamming-distances pheno_start_compare ((table:get-or-default hamming-distances location_in_disease 0) + 1)
@@ -493,15 +487,34 @@ end
 ;;
 
 to no-visualization
+  ifelse has-disease-sequence = []
+  [
     set color gray
+  ]
+  [
+    set color red
+  ]
+
+
 end
 
 to color-persons-by-vision ;; higher = better = lighter
+  ifelse has-disease-sequence = []
+  [
     set color 9 - (vision)
+  ]
+  [
+    set color red
+  ]
 end
 
 to color-persons-by-metabolism ;; lower = better = lighter
+  ifelse has-disease-sequence = []
+  [
     set color 0 + (metabolism * 2)
+  ][
+    set color red
+  ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -590,7 +603,7 @@ CHOOSER
 visualization
 visualization
 "no-visualization" "color-persons-by-vision" "color-persons-by-metabolism"
-1
+0
 
 PLOT
 720
@@ -619,7 +632,7 @@ initial-population
 initial-population
 10
 1000
-50.0
+240.0
 10
 1
 NIL
@@ -686,7 +699,7 @@ maximum-sugar-endowment
 maximum-sugar-endowment
 0
 200
-5.0
+8.0
 1
 1
 NIL
@@ -821,7 +834,7 @@ starting-probability-disease
 starting-probability-disease
 0
 100
-10.0
+23.0
 1
 1
 NIL
