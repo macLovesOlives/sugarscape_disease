@@ -10,6 +10,7 @@ breed [ diseases disease ]
 
 diseases-own [
   disease-sequence
+  persons-map ;; key: person_id value: starting index of phenotype manipulation
 ]
 
 persons-own [
@@ -31,6 +32,8 @@ persons-own [
   ;; disease
   genotype
   phenotype
+  has-disease-sequence
+  hamming-distances
 
   ;; misc, but useful
   neighbours
@@ -51,15 +54,15 @@ to setup
     stop
   ]
   clear-all
+  create-diseases number-diseases [ disease-setup ]
   create-persons initial-population [ person-setup ]
   setup-patches
-  create-diseases number-diseases [ disease-setup ]
   update-lorenz-and-gini
   reset-ticks
 end
 
 to disease-setup
-  let disease-sequence-len random-in-range 1 10
+  let disease-sequence-len random-in-range 2 10
   initialize-disease-sequence disease-sequence-len
 end
 
@@ -67,6 +70,7 @@ to person-setup ;; person procedure
   move-to one-of patches with [not any? other persons-here]
   set color grey
   set shape "circle"
+
   ;; basics
   set sugar random-in-range minimum-sugar-endowment maximum-sugar-endowment
   set metabolism random-in-range 1 4
@@ -94,9 +98,21 @@ to person-setup ;; person procedure
 
   ;; disease
   initialize-immune-system nobody nobody
+  set phenotype genotype
+  if starting-probability-disease > random-in-range 1 100
+  [
+    ;; gets a random disease
+    let disease-num (random-in-range 0 (number-diseases - 1))
+    set has-disease-sequence disease (disease-num)
 
+    hamming-distance ([disease-sequence] of has-disease-sequence) phenotype
+
+    show [disease-sequence] of has-disease-sequence
+    show phenotype
+    show hamming-distances
+    if table:length hamming-distances = 0 [ set has-disease-sequence [] ]
+  ]
   run visualization
-
 end
 
 to setup-patches
@@ -198,33 +214,47 @@ to initialize-immune-system [a b]
       set counter (counter - 1)
     ]
   ]
-  set phenotype genotype
 end
 
 to hamming-distance [disease-sequence-in phenotype-in]
-  let hamming-distances table:make
 
-  let length-of-disease (length disease-sequence-in)
+  set hamming-distances table:make
+
   let length-of-phenotype (length phenotype-in)
+  let length-of-disease (length disease-sequence-in)
 
-  let counter_a 0
-  let counter_b 0
+  print length-of-phenotype
+  print length-of-disease
 
-  loop[ ;; loop over all start points
-    if counter
+  let pheno_start_compare 0
+  let location_in_disease 0
 
-    counter_a += 1
+  while[ pheno_start_compare < (length-of-phenotype - length-of-disease)]
+  [
 
+    while[ location_in_disease < length-of-disease]
+    [
+      print "---"
+      show pheno_start_compare
+      show location_in_disease
+      if item location_in_disease disease-sequence-in != item (location_in_disease + pheno_start_compare) phenotype-in
+      [
+        table:put hamming-distances pheno_start_compare ((table:get-or-default hamming-distances location_in_disease 0) + 1)
+      ]
+
+      set location_in_disease location_in_disease + 1
+    ]
+    set pheno_start_compare pheno_start_compare + 1
+    set location_in_disease 0
   ]
-
-  table:put hamming-distances
-
+;  show hamming-distances
 
 end
+
+
 to inheritance-sugar [a b]
   set sugar ((.5 * a) + (.5 * b))
 end
-
 
 to check-partners [birth-spot]
   ifelse sex = 0
@@ -568,7 +598,7 @@ initial-population
 initial-population
 10
 1000
-550.0
+50.0
 10
 1
 NIL
@@ -657,54 +687,21 @@ NIL
 HORIZONTAL
 
 MONITOR
-10
-590
-92
-635
+440
+580
+522
+625
 num turtles
 count turtles
 0
 1
 11
 
-MONITOR
-210
-280
-260
-325
-age
-mean [age] of persons
-2
-1
-11
-
-MONITOR
-210
-330
-270
-375
-max age
-max [age] of persons
-2
-1
-11
-
-MONITOR
-210
-380
-272
-425
-min age
-min [age] of persons
-2
-1
-11
-
 PLOT
-10
-280
-210
+320
 430
+520
+580
 Visions
 NIL
 NIL
@@ -720,9 +717,9 @@ PENS
 "median" 1.0 0 -5987164 true "" "plot median [vision] of persons"
 
 PLOT
-85
+520
 430
-285
+720
 580
 metabolism
 NIL
@@ -739,9 +736,9 @@ PENS
 "median" 1.0 0 -7500403 true "" "plot median [metabolism] of persons"
 
 PLOT
-285
+720
 430
-485
+925
 580
 Age
 NIL
@@ -758,10 +755,10 @@ PENS
 "median" 1.0 0 -7500403 true "" "plot median [age] of persons"
 
 PLOT
-485
-430
-685
+520
 580
+720
+730
 Generation
 NIL
 NIL
@@ -777,10 +774,10 @@ PENS
 "median" 1.0 0 -7500403 true "" "plot median [generation] of persons"
 
 PLOT
-685
-430
-885
+720
 580
+925
+730
 birth/death rates
 NIL
 NIL
@@ -793,6 +790,21 @@ false
 "" ""
 PENS
 "birth rate" 1.0 0 -16777216 true "" "plot count persons with [age = 0]"
+
+SLIDER
+10
+285
+290
+318
+starting-probability-disease
+starting-probability-disease
+0
+100
+10.0
+1
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 @#$#@#$#@
