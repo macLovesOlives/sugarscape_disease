@@ -254,9 +254,10 @@ to hamming-distance [disease-sequence-in phenotype-in]
 
   while[ pheno_start_compare < (length-of-phenotype - length-of-disease)]
   [
-    table:put hamming-distances pheno_start_compare 0
+
     while[ location_in_disease < length-of-disease]
     [
+
       print "---"
       show pheno_start_compare
       show location_in_disease
