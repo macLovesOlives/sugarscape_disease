@@ -242,7 +242,6 @@ to go
         let rando random-in-range 1 100
         if probability-of-sick-randomly > rando
         [
-          print rando
           ;; gets a random disease
           let disease-num (random-in-range 0 (number-diseases - 1))
           set has-disease-sequence ([disease-sequence] of disease disease-num)
@@ -601,7 +600,6 @@ to color-persons-by-metabolism ;; lower = better = darker
     set color red
   ]
 end
-
 
 
 
