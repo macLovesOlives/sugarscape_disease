@@ -3,11 +3,13 @@ extensions [table]
 globals [
   gini-index-reserve
   lorenz-points
+  hospital-visits
 ]
+
 
 breed [  persons person  ]
 breed [ diseases disease ]
-
+breed    [ towns town ]
 
 diseases-own [
   disease-sequence
@@ -45,6 +47,7 @@ persons-own [
 patches-own [
   psugar
   max-psugar
+  hospital
 ]
 
 ;;
@@ -56,12 +59,18 @@ to setup
     user-message "Oops: the maximum-sugar-endowment must be larger than the minimum-sugar-endowment"
     stop
   ]
+  if epidemic-max <= epidemic-min [
+    user-message "Oops: the epidemic-max must be larger than the epidemic-min"
+    stop
+  ]
   clear-all
+  setup-patches
   create-diseases number-diseases [ disease-setup ]
   create-persons initial-population [ person-setup ]
-  setup-patches
   update-lorenz-and-gini
+  set hospital-visits 0
   reset-ticks
+
 end
 
 to disease-setup
@@ -71,7 +80,7 @@ to disease-setup
 end
 
 to person-setup ;; person procedure
-  move-to one-of patches with [not any? other persons-here]
+  move-to one-of patches with [not any? other persons-here and hospital != True]
 
   set color grey
   set shape "circle"
@@ -149,6 +158,30 @@ to setup-patches
     ]
   ]
   file-close
+  ;; hospitals
+  let counter 0
+  while [counter < initial-hospitals]
+  [
+    let px random-pxcor
+    let py random-pycor
+
+    let count_x 0
+    let count_y 0
+
+    while [count_x < hospital-capacity-base ][
+      set count_y 0
+      while [count_y < hospital-capacity-base][
+        ask patch (px + count_x) (py + count_y) [
+          set pcolor cyan
+          set psugar 0
+          set hospital True
+        ]
+        set count_y count_y + 1
+      ]
+      set count_x count_x + 1
+    ]
+    set counter counter + 1
+  ]
 end
 
 ;;
@@ -173,12 +206,25 @@ to go
       die
     ]
 
+  ;; if in hospital, healed
+     ;; maybe days in hospital = severity of disease
+    if [hospital] of patch-here = True[
+      outtake
+    ]
+
   ;; sick
     spread-disease
 
     ;; update metabolism if sick
     ifelse has-disease-sequence != [] [
       set metabolism metabolism + how-sick
+      let where-hospital see-hospital
+      if where-hospital != False[
+        ;; don't need to metabolis sugar when in hospital, but will be kicked out after x time
+        if hospital-cost < sugar [
+          intake where-hospital
+        ]
+      ]
     ][
       if can-get-sick-anytime = True
       [
@@ -198,21 +244,22 @@ to go
           let hd-index (min-hd (hamming-distances))
         ]
       ]
-    ]
+      if epidemic = True[
+        if ticks = day-of-epidemic and epidemic-effect > random-in-range 1 100 [
+          ;; gets a random disease
 
-    if epidemic = True[
-      if ticks = day-of-epidemic and epidemic-effect > random-in-range 1 100 [
-        ;; gets a random disease
+          let disease-num (random-in-range 0 (number-diseases - 1))
+          set has-disease-sequence ([disease-sequence] of disease disease-num)
 
-        let disease-num (random-in-range 0 (number-diseases - 1))
-        set has-disease-sequence ([disease-sequence] of disease disease-num)
+          set how-sick random-in-range epidemic-min epidemic-max
+          set metabolism metabolism + how-sick
+          hamming-distance (has-disease-sequence) phenotype
 
-        set how-sick random-in-range epidemic-min epidemic-max
-        hamming-distance (has-disease-sequence) phenotype
-
-        let hd-index (min-hd (hamming-distances))
+          let hd-index (min-hd (hamming-distances))
+        ]
       ]
     ]
+
 
   ;; babies
     person-is-fertile
@@ -223,6 +270,41 @@ to go
   tick
 
 end
+
+to-report see-hospital
+  let can-see (patch-set patch-here (patches at-points vision-points) with [not any? persons-here and hospital = True])
+  ifelse any? can-see[
+    report one-of can-see
+  ][
+    report False
+  ]
+end
+
+to intake [hospital-location]
+  move-to hospital-location
+end
+
+to outtake
+  let move-candidates (patch-set patch-here (patches at-points vision-points) with [not any? persons-here and hospital != True])
+  ifelse any? move-candidates [
+    move-to min-one-of move-candidates [distance myself]
+  ][
+    let expanded-vision-points []
+    foreach (range 1 (vision + hospital-capacity-base)) [ n ->
+      set expanded-vision-points sentence expanded-vision-points (list (list 0 n) (list n 0) (list 0 (- n)) (list (- n) 0))
+    ]
+    set move-candidates (patch-set patch-here (patches at-points vision-points) with [not any? persons-here and hospital != True])
+    if any? move-candidates [
+      move-to min-one-of move-candidates [distance myself]
+    ]
+  ]
+  set sugar sugar - hospital-cost
+  set has-disease-sequence []
+  set how-sick 0
+  set hospital-visits hospital-visits + 1
+  show hospital-visits
+end
+
 
 to person-is-fertile
   ;; sexual maturity
@@ -420,7 +502,7 @@ end
 
 to person-move ;; person procedure
   ;; consider moving to unoccupied patches in our vision, as well as staying at the current patch
-  let move-candidates (patch-set patch-here (patches at-points vision-points) with [not any? persons-here])
+  let move-candidates (patch-set patch-here (patches at-points vision-points) with [not any? persons-here and hospital != True])
   let possible-winners move-candidates with-max [psugar]
   if any? possible-winners [
     ;; if there are any such patches move to one of the patches that is closest
@@ -436,7 +518,12 @@ end
 
 to patch-recolor ;; patch procedure
   ;; color patches based on the amount of sugar they have
-  set pcolor (green + 4.9 - psugar)
+  ifelse hospital = True[
+    set pcolor cyan
+  ][
+    set pcolor (green + 4.9 - psugar)
+  ]
+
 end
 
 to patch-growback ;; patch procedure
@@ -542,9 +629,9 @@ ticks
 
 BUTTON
 10
-150
+170
 90
-190
+210
 NIL
 setup
 NIL
@@ -559,9 +646,9 @@ NIL
 
 BUTTON
 100
-150
+170
 190
-190
+210
 NIL
 go
 T
@@ -576,9 +663,9 @@ NIL
 
 BUTTON
 200
-150
+170
 290
-190
+210
 go once
 go
 NIL
@@ -593,9 +680,9 @@ NIL
 
 CHOOSER
 10
-190
+215
 290
-235
+260
 visualization
 visualization
 "no-visualization" "color-persons-by-vision" "color-persons-by-metabolism"
@@ -605,7 +692,7 @@ PLOT
 720
 10
 925
-140
+145
 Wealth distribution
 NIL
 NIL
@@ -628,7 +715,7 @@ initial-population
 initial-population
 10
 1000
-600.0
+40.0
 10
 1
 NIL
@@ -636,9 +723,9 @@ HORIZONTAL
 
 SLIDER
 10
-45
+50
 290
-78
+83
 minimum-sugar-endowment
 minimum-sugar-endowment
 0
@@ -651,9 +738,9 @@ HORIZONTAL
 
 PLOT
 720
-140
+145
 925
-290
+300
 Lorenz curve
 Pop %
 Wealth %
@@ -670,9 +757,9 @@ PENS
 
 PLOT
 720
-290
+300
 925
-430
+440
 Gini index vs. time
 Time
 Gini
@@ -688,14 +775,14 @@ PENS
 
 SLIDER
 10
-80
+90
 290
-113
+123
 maximum-sugar-endowment
 maximum-sugar-endowment
 0
 200
-30.0
+35.0
 5
 1
 NIL
@@ -703,9 +790,9 @@ HORIZONTAL
 
 SLIDER
 10
-115
+130
 290
-148
+163
 number-diseases
 number-diseases
 0
@@ -717,10 +804,10 @@ NIL
 HORIZONTAL
 
 PLOT
-370
-430
-550
-580
+300
+440
+510
+590
 Visions
 NIL
 NIL
@@ -735,10 +822,10 @@ PENS
 "mean" 1.0 0 -16777216 true "" "plot mean [vision] of persons"
 
 PLOT
-550
-430
+510
+440
 720
-580
+590
 metabolism
 NIL
 NIL
@@ -753,10 +840,10 @@ PENS
 "mean" 1.0 0 -16777216 true "" "plot mean [metabolism] of persons"
 
 PLOT
-190
-430
-370
-580
+720
+590
+925
+740
 Age
 NIL
 NIL
@@ -771,10 +858,10 @@ PENS
 "mean" 1.0 0 -16777216 true "" "plot mean [age] of persons"
 
 PLOT
-10
-430
-190
-580
+510
+590
+720
+740
 Generation
 NIL
 NIL
@@ -790,9 +877,9 @@ PENS
 
 PLOT
 720
-430
+440
 925
-580
+590
 Population
 NIL
 NIL
@@ -808,9 +895,9 @@ PENS
 
 SLIDER
 10
-235
+265
 290
-268
+298
 starting-probability-disease
 starting-probability-disease
 0
@@ -822,10 +909,10 @@ NIL
 HORIZONTAL
 
 SWITCH
+10
+425
 155
-385
-290
-418
+458
 can-get-sick-anytime
 can-get-sick-anytime
 1
@@ -833,15 +920,15 @@ can-get-sick-anytime
 -1000
 
 SLIDER
-10
-385
 155
-418
+425
+290
+458
 probability-of-sick-randomly
 probability-of-sick-randomly
 0
 50
-1.0
+0.0
 1
 1
 NIL
@@ -849,14 +936,14 @@ HORIZONTAL
 
 SLIDER
 155
-345
+385
 290
-378
+418
 day-of-epidemic
 day-of-epidemic
 1
 1000
-49.0
+76.0
 1
 1
 NIL
@@ -864,9 +951,9 @@ HORIZONTAL
 
 SWITCH
 10
-345
+385
 155
-378
+418
 epidemic
 epidemic
 0
@@ -875,9 +962,9 @@ epidemic
 
 SLIDER
 10
-275
+305
 290
-308
+338
 epidemic-effect
 epidemic-effect
 30
@@ -889,28 +976,10 @@ NIL
 HORIZONTAL
 
 PLOT
-10
-580
-190
-730
-Disease
-NIL
-NIL
-0.0
-10.0
-0.0
-10.0
-true
-false
-"" ""
-PENS
-"default" 1.0 0 -16777216 true "" "plot count persons with [has-disease-sequence != []]"
-
-PLOT
-190
-580
-370
-730
+300
+590
+510
+740
 Disease %
 NIL
 NIL
@@ -926,14 +995,14 @@ PENS
 
 SLIDER
 10
-310
+345
 155
-343
+378
 epidemic-min
 epidemic-min
 0
 100
-50.0
+19.0
 1
 1
 NIL
@@ -941,18 +1010,92 @@ HORIZONTAL
 
 SLIDER
 155
-310
+345
 290
-343
+378
 epidemic-max
 epidemic-max
 0
 100
-50.0
+25.0
 1
 1
 NIL
 HORIZONTAL
+
+SLIDER
+10
+465
+155
+498
+hospital-capacity-base
+hospital-capacity-base
+0
+25
+5.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+10
+505
+290
+538
+hospital-cost
+hospital-cost
+0
+100
+18.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+10
+545
+290
+578
+initial-hospitals
+initial-hospitals
+0
+5
+3.0
+1
+1
+NIL
+HORIZONTAL
+
+MONITOR
+155
+460
+290
+505
+Hospital Capacity
+hospital-capacity-base ^ 2
+17
+1
+11
+
+PLOT
+100
+590
+300
+740
+Hospital Visits
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot hospital-visits"
 
 @#$#@#$#@
 @#$#@#$#@
