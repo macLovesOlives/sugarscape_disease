@@ -8,6 +8,7 @@ globals [
 breed [  persons person  ]
 breed [ diseases disease ]
 
+
 diseases-own [
   disease-sequence
   persons-map ;; key: person_id value: starting index of phenotype manipulation
@@ -163,6 +164,7 @@ to go
     patch-recolor
   ]
   ask persons [
+  ;; basics
     person-move
     set neighbours (other persons) in-radius 1
     person-eat
@@ -170,12 +172,15 @@ to go
     if sugar <= 0 or age > max-age [
       die
     ]
-    ;; sick
+
+  ;; sick
+    spread-disease
+
+    ;; update metabolism if sick
     ifelse has-disease-sequence != [] [
       set metabolism metabolism + how-sick
     ][
-
-    if can-get-sick-anytime = True
+      if can-get-sick-anytime = True
       [
         set has-disease-sequence []
         set how-sick 0
@@ -194,13 +199,29 @@ to go
         ]
       ]
     ]
-    spread-disease ;; spread before babies
-    person-is-fertile
 
+    if epidemic = True[
+      if ticks = day-of-epidemic and epidemic-effect > random-in-range 1 100 [
+        ;; gets a random disease
+
+        let disease-num (random-in-range 0 (number-diseases - 1))
+        set has-disease-sequence ([disease-sequence] of disease disease-num)
+
+        set how-sick random-in-range epidemic-min epidemic-max
+        hamming-distance (has-disease-sequence) phenotype
+
+        let hd-index (min-hd (hamming-distances))
+      ]
+    ]
+
+  ;; babies
+    person-is-fertile
     run visualization
   ]
+
   update-lorenz-and-gini
   tick
+
 end
 
 to person-is-fertile
@@ -308,7 +329,7 @@ to have-a-baby [me partner]
     ;; basics
     set color yellow
     set sex random-in-range 0 1
-    set generation ((max list ( [generation] of partner) ([generation] of me)) + 1)
+    set generation ((max list ([generation] of partner) ([generation] of me)) + 1)
     set age 0
     set max-age random-in-range 60 100
 
@@ -477,6 +498,7 @@ to color-persons-by-vision ;; higher = better = darker
 end
 
 to color-persons-by-metabolism ;; lower = better = darker
+
   ifelse has-disease-sequence = []
   [
     set color 0 + (metabolism * 2)
@@ -484,6 +506,12 @@ to color-persons-by-metabolism ;; lower = better = darker
     set color red
   ]
 end
+
+
+
+
+
+
 @#$#@#$#@
 GRAPHICS-WINDOW
 300
@@ -514,9 +542,9 @@ ticks
 
 BUTTON
 10
-170
+150
 90
-210
+190
 NIL
 setup
 NIL
@@ -531,9 +559,9 @@ NIL
 
 BUTTON
 100
-170
+150
 190
-210
+190
 NIL
 go
 T
@@ -548,9 +576,9 @@ NIL
 
 BUTTON
 200
-170
+150
 290
-210
+190
 go once
 go
 NIL
@@ -565,9 +593,9 @@ NIL
 
 CHOOSER
 10
-215
+190
 290
-260
+235
 visualization
 visualization
 "no-visualization" "color-persons-by-vision" "color-persons-by-metabolism"
@@ -608,9 +636,9 @@ HORIZONTAL
 
 SLIDER
 10
-50
+45
 290
-83
+78
 minimum-sugar-endowment
 minimum-sugar-endowment
 0
@@ -660,9 +688,9 @@ PENS
 
 SLIDER
 10
-90
+80
 290
-123
+113
 maximum-sugar-endowment
 maximum-sugar-endowment
 0
@@ -675,29 +703,18 @@ HORIZONTAL
 
 SLIDER
 10
-130
+115
 290
-163
+148
 number-diseases
 number-diseases
 0
 50
-8.0
+9.0
 1
 1
 NIL
 HORIZONTAL
-
-MONITOR
-190
-300
-290
-345
-num persons
-count persons
-0
-1
-11
 
 PLOT
 370
@@ -776,7 +793,7 @@ PLOT
 430
 925
 580
-birth/death rates
+Population
 NIL
 NIL
 0.0
@@ -787,42 +804,31 @@ true
 false
 "" ""
 PENS
-"birth rate" 1.0 0 -16777216 true "" "plot count persons with [age = 0]"
+"birth rate" 1.0 0 -16777216 true "" "plot count persons"
 
 SLIDER
 10
-265
+235
 290
-298
+268
 starting-probability-disease
 starting-probability-disease
 0
 100
-10.0
+35.0
 5
 1
 NIL
 HORIZONTAL
 
-MONITOR
-10
-300
-110
-345
-Number Sick
-count persons with [has-disease-sequence != []]
-17
-1
-11
-
 SWITCH
-10
-350
 155
-383
+385
+290
+418
 can-get-sick-anytime
 can-get-sick-anytime
-0
+1
 1
 -1000
 
@@ -843,29 +849,110 @@ HORIZONTAL
 
 SLIDER
 155
-350
+345
 290
-383
+378
 day-of-epidemic
 day-of-epidemic
 1
 1000
-500.0
+49.0
 1
 1
 NIL
 HORIZONTAL
 
 SWITCH
+10
+345
 155
-385
-290
-418
+378
 epidemic
 epidemic
-1
+0
 1
 -1000
+
+SLIDER
+10
+275
+290
+308
+epidemic-effect
+epidemic-effect
+30
+100
+91.0
+1
+1
+NIL
+HORIZONTAL
+
+PLOT
+10
+580
+190
+730
+Disease
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot count persons with [has-disease-sequence != []]"
+
+PLOT
+190
+580
+370
+730
+Disease %
+NIL
+NIL
+0.0
+10.0
+0.0
+1.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot (count persons with [has-disease-sequence != []])/(count persons)"
+
+SLIDER
+10
+310
+155
+343
+epidemic-min
+epidemic-min
+0
+100
+50.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+155
+310
+290
+343
+epidemic-max
+epidemic-max
+0
+100
+50.0
+1
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 @#$#@#$#@
