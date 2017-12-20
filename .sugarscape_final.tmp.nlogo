@@ -303,6 +303,62 @@ to inheritance-sugar [a b]
   set sugar ((.5 * a) + (.5 * b))
 end
 
+to have-a-baby [me partner]
+  hatch 1 [
+    ;; basics
+    set color yellow
+    set sex random-in-range 0 1
+    set generation ((max list ( [generation] of partner) ([generation] of me)) + 1)
+    set age 0
+    set max-age random-in-range 60 100
+
+    ;; initialize parents
+    let parent one-of list (partner) (me) ;; selects a random parent to inherit from
+
+    ;; inherit disease
+    ifelse length [has-disease-sequence] of partner > 1 or length has-disease-sequence > 1
+    [
+      set has-disease-sequence ([has-disease-sequence] of parent)
+      set how-sick random-in-range 1 2
+    ][
+      set has-disease-sequence []
+      set how-sick 0
+    ]
+
+    ;; endowment
+    initialize-immune-system ([genotype] of partner) (genotype)
+    set sugar (( [sugar] of partner ) / 2 ) + (( [sugar] of me ) / 2 )
+
+    ;; basic life variables
+    set parent one-of list (partner) (me)
+    set metabolism min list ([metabolism] of parent) metabolism
+
+    set parent one-of list (partner) (me)
+    set vision max list ([vision] of parent) vision
+
+    set vision-points []
+    foreach (range 1 (vision + 1)) [ n ->
+      set vision-points sentence vision-points (list (list 0 n) (list n 0) (list 0 (- n)) (list (- n) 0))
+    ]
+
+    ;; fertility
+    set fertility-min-age random-in-range 12 15
+    if sex = 0
+    [
+      set fertility-max-age random-in-range 40 50
+    ]
+    if sex = 1
+    [
+      set fertility-max-age random-in-range 50 60
+    ]
+
+    ;; update parents
+    ask partner [set sugar (sugar - (0.5 * original-endowment))]
+    ask me [set sugar (sugar - (0.5 * original-endowment))]
+
+  ]
+end
+
 to check-partners [birth-spot]
   ifelse sex = 0
   [
@@ -311,122 +367,14 @@ to check-partners [birth-spot]
       let parent-2 neighbours with [sex = 1 and age >= fertility-min-age and age <= fertility-max-age and sugar >= original-endowment]
       if parent-2 != no-turtles ;; there is a parent 2
       [
-        hatch 1 [
-
-        ;; basics
-          set color yellow
-          set sex random-in-range 0 1
-          set generation ((max list (first [generation] of parent-2) (generation)) + 1)
-          set age 0
-          set max-age random-in-range 60 100
-
-        ;; initialize parents
-          let partner one-of parent-2
-          let parent one-of list (partner) (myself) ;; selects a random parent to inherit from
-
-        ;; inherit disease
-          ifelse length first [has-disease-sequence] of parent-2 > 1 or length has-disease-sequence > 1
-          [
-            set has-disease-sequence ([has-disease-sequence] of parent)
-            set how-sick random-in-range 1 2
-          ][
-            set has-disease-sequence []
-            set how-sick 0
-          ]
-
-        ;; endowment
-          initialize-immune-system ([genotype] of partner) (genotype)
-          set sugar (( [sugar] of partner ) / 2 ) + (( [sugar] of myself ) / 2 )
-
-        ;; basic life variables
-          set parent one-of list (partner) (myself)
-          set metabolism min list ([metabolism] of parent) metabolism
-
-          set parent one-of list (partner) (myself)
-          set vision max list ([vision] of parent) vision
-
-          set vision-points []
-          foreach (range 1 (vision + 1)) [ n ->
-            set vision-points sentence vision-points (list (list 0 n) (list n 0) (list 0 (- n)) (list (- n) 0))
-          ]
-
-        ;; fertility
-          set fertility-min-age random-in-range 12 15
-          if sex = 0
-          [
-            set fertility-max-age random-in-range 40 50
-          ]
-          if sex = 1
-          [
-            set fertility-max-age random-in-range 50 60
-          ]
-
-        ;; update parents
-          ask partner [set sugar (sugar - (0.5 * original-endowment))]
-          ask myself [set sugar (sugar - (0.5 * original-endowment))]
-
-        ]
+        have-a-baby self (one-of parent-2)
       ]
     ]
     [
       let parent-2 neighbours with [sex = 1 and age >= fertility-min-age and age <= fertility-max-age and sugar >= original-endowment and count neighbours < 4]
       if parent-2 != no-turtles
       [
-        hatch 1 [
-
-        ;; basics
-          set color yellow
-          set sex random-in-range 0 1
-          set generation ((max list (first [generation] of parent-2) (generation)) + 1)
-          set age 0
-          set max-age random-in-range 60 100
-
-        ;; initialize parents
-          let partner one-of parent-2
-          let parent one-of list (partner) (myself) ;; selects a random parent to inherit from
-
-        ;; inherit disease
-          ifelse length first [has-disease-sequence] of parent-2 > 1 or length has-disease-sequence > 1
-          [
-            set has-disease-sequence ([has-disease-sequence] of parent)
-            set how-sick random-in-range 1 2
-          ][
-            set has-disease-sequence []
-            set how-sick 0
-          ]
-
-        ;; endowment
-          initialize-immune-system ([genotype] of partner) (genotype)
-          set sugar (( [sugar] of partner ) / 2 ) + (( [sugar] of myself ) / 2 )
-
-        ;; basic life variables
-          set parent one-of list (partner) (myself)
-          set metabolism min list ([metabolism] of parent) metabolism
-
-          set parent one-of list (partner) (myself)
-          set vision max list ([vision] of parent) vision
-
-          set vision-points []
-          foreach (range 1 (vision + 1)) [ n ->
-            set vision-points sentence vision-points (list (list 0 n) (list n 0) (list 0 (- n)) (list (- n) 0))
-          ]
-
-        ;; fertility
-          set fertility-min-age random-in-range 12 15
-          if sex = 0
-          [
-            set fertility-max-age random-in-range 40 50
-          ]
-          if sex = 1
-          [
-            set fertility-max-age random-in-range 50 60
-          ]
-
-        ;; update parents
-          ask partner [set sugar (sugar - (0.5 * original-endowment))]
-          ask myself [set sugar (sugar - (0.5 * original-endowment))]
-
-        ]
+        have-a-baby self (one-of parent-2)
       ]
     ]
   ]
@@ -436,122 +384,14 @@ to check-partners [birth-spot]
       let parent-2 neighbours with [sex = 0 and age >= fertility-min-age and age <= fertility-max-age and sugar >= original-endowment]
       if parent-2 != no-turtles
       [
-        hatch 1 [
-
-        ;; basics
-          set color yellow
-          set sex random-in-range 0 1
-          set generation ((max list (first [generation] of parent-2) (generation)) + 1)
-          set age 0
-          set max-age random-in-range 60 100
-
-        ;; initialize parents
-          let partner one-of parent-2
-          let parent one-of list (partner) (myself) ;; selects a random parent to inherit from
-
-        ;; inherit disease
-          ifelse length first [has-disease-sequence] of parent-2 > 1 or length has-disease-sequence > 1
-          [
-            set has-disease-sequence ([has-disease-sequence] of parent)
-            set how-sick random-in-range 1 2
-          ][
-            set has-disease-sequence []
-            set how-sick 0
-          ]
-
-        ;; endowment
-          initialize-immune-system ([genotype] of partner) (genotype)
-          set sugar (( [sugar] of partner ) / 2 ) + (( [sugar] of myself ) / 2 )
-
-        ;; basic life variables
-          set parent one-of list (partner) (myself)
-          set metabolism min list ([metabolism] of parent) metabolism
-
-          set parent one-of list (partner) (myself)
-          set vision max list ([vision] of parent) vision
-
-          set vision-points []
-          foreach (range 1 (vision + 1)) [ n ->
-            set vision-points sentence vision-points (list (list 0 n) (list n 0) (list 0 (- n)) (list (- n) 0))
-          ]
-
-        ;; fertility
-          set fertility-min-age random-in-range 12 15
-          if sex = 0
-          [
-            set fertility-max-age random-in-range 40 50
-          ]
-          if sex = 1
-          [
-            set fertility-max-age random-in-range 50 60
-          ]
-
-        ;; update parents
-          ask partner [set sugar (sugar - (0.5 * original-endowment))]
-          ask myself [set sugar (sugar - (0.5 * original-endowment))]
-
-        ]
+        have-a-baby self (one-of parent-2)
       ]
     ]
     [
       let parent-2 neighbours with [sex = 0 and age >= fertility-min-age and age <= fertility-max-age and sugar >= original-endowment and count neighbours < 4]
       if parent-2 != no-turtles
       [
-        hatch 1 [
-
-        ;; basics
-          set color yellow
-          set sex random-in-range 0 1
-          set generation ((max list (first [generation] of parent-2) (generation)) + 1)
-          set age 0
-          set max-age random-in-range 60 100
-
-        ;; initialize parents
-          let partner one-of parent-2
-          let parent one-of list (partner) (myself) ;; selects a random parent to inherit from
-
-        ;; inherit disease
-          ifelse length first [has-disease-sequence] of parent-2 > 1 or length has-disease-sequence > 1
-          [
-            set has-disease-sequence ([has-disease-sequence] of parent)
-            set how-sick random-in-range 1 2
-          ][
-            set has-disease-sequence []
-            set how-sick 0
-          ]
-
-        ;; endowment
-          initialize-immune-system ([genotype] of partner) (genotype)
-          set sugar (( [sugar] of partner ) / 2 ) + (( [sugar] of myself ) / 2 )
-
-        ;; basic life variables
-          set parent one-of list (partner) (myself)
-          set metabolism min list ([metabolism] of parent) metabolism
-
-          set parent one-of list (partner) (myself)
-          set vision max list ([vision] of parent) vision
-
-          set vision-points []
-          foreach (range 1 (vision + 1)) [ n ->
-            set vision-points sentence vision-points (list (list 0 n) (list n 0) (list 0 (- n)) (list (- n) 0))
-          ]
-
-        ;; fertility
-          set fertility-min-age random-in-range 12 15
-          if sex = 0
-          [
-            set fertility-max-age random-in-range 40 50
-          ]
-          if sex = 1
-          [
-            set fertility-max-age random-in-range 50 60
-          ]
-
-        ;; update parents
-          ask partner [set sugar (sugar - (0.5 * original-endowment))]
-          ask myself [set sugar (sugar - (0.5 * original-endowment))]
-
-        ]
+        have-a-baby self (one-of parent-2)
       ]
     ]
   ]
@@ -1016,20 +856,16 @@ day-of-epidemic
 NIL
 HORIZONTAL
 
-SLIDER
-165
-395
-337
-428
-NIL
-NIL
-0
-100
-50.0
+SWITCH
+155
+385
+290
+418
+epidemic
+epidemic
 1
 1
-NIL
-HORIZONTAL
+-1000
 
 @#$#@#$#@
 @#$#@#$#@
