@@ -6,6 +6,12 @@ globals [
   hospital-visits
 ]
 
+
+;; hospital stay = severity of disease
+;; multiple epidemics (enter days as a list)
+
+
+
 breed [  persons person  ]
 breed [ diseases disease ]
 breed    [ towns town ]
@@ -61,6 +67,10 @@ to setup
   if epidemic-max <= epidemic-min [
     user-message "Oops: the epidemic-max must be larger than the epidemic-min"
     stop
+  ]
+
+  if first days-of-epidemic != "[" or last days-of-epidemic != "]" [
+    user-message "Oops: make sure the days for days-of-epidemic are in [ ]"
   ]
   clear-all
   setup-patches
@@ -244,7 +254,7 @@ to go
         ]
       ]
       if epidemic = True[
-        if ticks = day-of-epidemic and epidemic-effect > random-in-range 1 100 [
+        if member? ticks (read-from-string days-of-epidemic) and epidemic-effect > random-in-range 1 100 [
           ;; gets a random disease
 
           let disease-num (random-in-range 0 (number-diseases - 1))
@@ -301,7 +311,6 @@ to outtake
   set has-disease-sequence []
   set how-sick 0
   set hospital-visits hospital-visits + 1
-  show hospital-visits
 end
 
 
@@ -839,10 +848,10 @@ PENS
 "mean" 1.0 0 -16777216 true "" "plot mean [metabolism] of persons"
 
 PLOT
-720
-590
 925
-740
+300
+1135
+440
 Age
 NIL
 NIL
@@ -857,10 +866,10 @@ PENS
 "mean" 1.0 0 -16777216 true "" "plot mean [age] of persons"
 
 PLOT
-510
-590
-720
-740
+925
+10
+1135
+145
 Generation
 NIL
 NIL
@@ -920,29 +929,14 @@ can-get-sick-anytime
 
 SLIDER
 155
-425
+465
 290
-458
+498
 probability-of-sick-randomly
 probability-of-sick-randomly
 0
 50
 0.0
-1
-1
-NIL
-HORIZONTAL
-
-SLIDER
-155
-385
-290
-418
-day-of-epidemic
-day-of-epidemic
-1
-1000
-76.0
 1
 1
 NIL
@@ -975,10 +969,10 @@ NIL
 HORIZONTAL
 
 PLOT
-300
+925
+440
+1135
 590
-510
-740
 Disease %
 NIL
 NIL
@@ -1068,10 +1062,10 @@ NIL
 HORIZONTAL
 
 MONITOR
-155
-460
-290
-505
+1140
+150
+1275
+195
 Hospital Capacity
 hospital-capacity-base ^ 2
 17
@@ -1079,10 +1073,10 @@ hospital-capacity-base ^ 2
 11
 
 PLOT
-100
-590
+925
+145
+1135
 300
-740
 Hospital Visits
 NIL
 NIL
@@ -1095,6 +1089,37 @@ false
 "" ""
 PENS
 "default" 1.0 0 -16777216 true "" "plot hospital-visits"
+
+PLOT
+1135
+10
+1325
+145
+average-sugar
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"mean" 1.0 0 -16777216 true "" "plot mean [sugar] of persons"
+"max" 1.0 0 -13840069 true "" "plot max [sugar] of persons"
+"min" 1.0 0 -2674135 true "" "plot min [sugar] of persons"
+
+INPUTBOX
+160
+385
+290
+460
+days-of-epidemic
+[75 150]
+1
+0
+String
 
 @#$#@#$#@
 @#$#@#$#@
